@@ -147,10 +147,13 @@ def borrow_book(book_id):
 # ==========================================
 # 7. ROUTE: LOGOUT
 # ==========================================
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('home'))
+#@app.route('/logout')
+#def logout():
+#    session.clear()
+#    return redirect(url_for('home'))
+@app.route('/')
+def home():
+    return render_template('index.html')
 
 # ==========================================
 # RUN THE APPLICATION
