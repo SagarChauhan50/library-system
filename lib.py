@@ -57,9 +57,12 @@ def init_db():
         cursor.execute("SELECT COUNT(*) FROM books")
         if cursor.fetchone()[0] == 0:
             conn.execute("INSERT INTO books (title, author, available_copies) VALUES (?, ?, ?)", 
-                           ("Python Programming for Beginners", "John Smith", 5))
+                         ("Python Programming for Beginners", "John Smith", 5))
             conn.execute("INSERT INTO books (title, author, available_copies) VALUES (?, ?, ?)", 
-                           ("Data Structures Made Easy", "Jane Doe", 3))
+                         ("Data Structures Made Easy", "Jane Doe", 3))
+
+# Initialize the database immediately so Render/Gunicorn picks it up on startup
+init_db()
 
 # ==========================================
 # 2. ROUTE: HOME PAGE (LOGIN / WELCOME)
@@ -147,18 +150,14 @@ def borrow_book(book_id):
 # ==========================================
 # 7. ROUTE: LOGOUT
 # ==========================================
-#@app.route('/logout')
-#def logout():
-#    session.clear()
-#    return redirect(url_for('home'))
-@app.route('/')
-def home():
-    return render_template('index.html')
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
 
 # ==========================================
-# RUN THE APPLICATION
+# RUN THE APPLICATION LOCALLY
 # ==========================================
 if __name__ == '__main__':
-    init_db()
     webbrowser.open('http://127.0.0.1:5000')
     app.run(debug=True)
