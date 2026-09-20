@@ -161,3 +161,27 @@ def logout():
 if __name__ == '__main__':
     webbrowser.open('http://127.0.0.1:5000')
     app.run(debug=True)
+
+
+# ==========================================
+# EXTRA ROUTE: VIEW DATABASE LIVE (FOR VIVA)
+# ==========================================
+@app.route('/admin/view-data')
+def view_data():
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        
+        # Get all registered users
+        cursor.execute("SELECT id, name, email, role FROM users")
+        users = cursor.fetchall()
+        
+        # Get all borrowing transactions
+        cursor.execute("""
+            SELECT transactions.id, users.name, books.title, transactions.borrow_date 
+            FROM transactions 
+            JOIN users ON transactions.user_id = users.id 
+            JOIN books ON transactions.book_id = books.id
+        """)
+        transactions = cursor.fetchall()
+        
+    return render_template('admin.html', users=users, transactions=transactions)
