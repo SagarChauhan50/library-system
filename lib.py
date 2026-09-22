@@ -39,14 +39,16 @@ def init_db():
                 available_copies INTEGER NOT NULL
             )
         ''')
-        
+
         # Create 'transactions' table to track who borrowed what and when
+        # added status TEXT DEFAULT 'borrowed', to get return func in dash on 22/09/26
         conn.execute('''
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 book_id INTEGER,
                 user_id INTEGER,
                 borrow_date TEXT,
+                status TEXT DEFAULT 'borrowed',
                 FOREIGN KEY(book_id) REFERENCES books(id),
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )
@@ -113,6 +115,7 @@ def login():
 # ==========================================
 # 5. ROUTE: DASHBOARD (BOOK CATALOG)
 # ==========================================
+'''
 @app.route('/dashboard')
 def dashboard():
     if 'user_name' not in session:
@@ -124,6 +127,38 @@ def dashboard():
         books = cursor.fetchall()
         
     return render_template('dashboard.html', name=session['user_name'], books=books)
+'''
+
+# Updated dash 22/09/26
+
+@app.route('/dashboard')
+def dashboard():
+    if 'user_name' not in session:
+        return redirect(url_for('home'))
+        
+    user_id = session['user_id']
+    
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        
+        # 1. Get all books for the catalog table
+        cursor.execute("SELECT * FROM books")
+        books = cursor.fetchall()
+        
+        # 2. Get only the books currently borrowed by this logged-in user
+        cursor.execute("""
+            SELECT transactions.id, books.title, transactions.borrow_date 
+            FROM transactions 
+            JOIN books ON transactions.book_id = books.id 
+            WHERE transactions.user_id = ? AND transactions.status = 'borrowed'
+        """, (user_id,))
+        borrowed_books = cursor.fetchall()
+        
+    return render_template('dashboard.html', name=session['user_name'], books=books, borrowed_books=borrowed_books)
+
+
+
+
 
 # ==========================================
 # 6. ROUTE: BORROW BOOK ACTION
@@ -185,3 +220,35 @@ def view_data():
         transactions = cursor.fetchall()
         
     return render_template('admin.html', users=users, transactions=transactions)
+
+
+
+# ==========================================
+# ROUTE: RETURN BOOK ACTION                                   22/09/26
+# ==========================================
+@app.route('/return/<int:transaction_id>')
+def return_book(transaction_id):
+    if 'user_id' not in session:
+        return redirect(url_for('home'))
+        
+    user_id = session['user_id']
+    
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        
+        # Check if the transaction belongs to this user and is active
+        cursor.execute("SELECT book_id FROM transactions WHERE id = ? AND user_id = ? AND status = 'borrowed'", (transaction_id, user_id))
+        transaction = cursor.fetchone()
+        
+        if transaction:
+            book_id = transaction[0]
+            
+            # Mark transaction as returned
+            conn.execute("UPDATE transactions SET status = 'returned' WHERE id = ?", (transaction_id,))
+            
+            # Increase available copies of the book by 1
+            conn.execute("UPDATE books SET available_copies = available_copies + 1 WHERE id = ?", (book_id,))
+            
+            conn.commit()
+            
+    return redirect(url_for('dashboard'))
