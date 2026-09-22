@@ -216,3 +216,33 @@ def return_book(transaction_id):
             conn.commit()
             
     return redirect(url_for('dashboard'))
+
+
+
+# ==========================================
+# 5. ROUTE: DASHBOARD (BOOK CATALOG & BORROWED BOOKS)
+# ==========================================
+@app.route('/dashboard')
+def dashboard():
+    if 'user_name' not in session:
+        return redirect(url_for('home'))
+        
+    user_id = session['user_id']
+    
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        
+        # Get all books for the catalog
+        cursor.execute("SELECT * FROM books")
+        books = cursor.fetchall()
+        
+        # Get books currently borrowed by this specific user
+        cursor.execute("""
+            SELECT transactions.id, books.title, transactions.borrow_date 
+            FROM transactions 
+            JOIN books ON transactions.book_id = books.id 
+            WHERE transactions.user_id = ?
+        """, (user_id,))
+        borrowed_books = cursor.fetchall()
+        
+    return render_template('dashboard.html', name=session['user_name'], books=books, borrowed_books=borrowed_books)
