@@ -6,20 +6,51 @@
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f4f9; padding: 40px; margin: 0; }
         .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h2 { color: #333; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        h2, h3 { color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 30px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
         th { background-color: #007bff; color: white; }
         .btn-borrow { background-color: #28a745; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 14px; }
         .btn-borrow:hover { background-color: #218838; }
+        .btn-return { background-color: #dc3545; color: white; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-size: 14px; }
+        .btn-return:hover { background-color: #c82333; }
         .disabled { color: #888; font-style: italic; }
-        .logout { display: inline-block; margin-top: 20px; color: red; text-decoration: none; font-weight: bold; }
+        .logout { display: inline-block; margin-top: 10px; color: red; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>Welcome, {{ name }}!</h2>
-        <p>Here is the list of available books in the library:</p>
+
+        <!-- SECTION 1: BOOKS CURRENTLY BORROWED BY THIS USER -->
+        <h3>Your Borrowed Books</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Borrow Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in borrowed_books %}
+                <tr>
+                    <td>{{ item[1] }}</td>
+                    <td>{{ item[2] }}</td>
+                    <td>
+                        <a href="/return/{{ item[0] }}" class="btn-return">Return</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center; color: #888;">You have not borrowed any books yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- SECTION 2: LIBRARY CATALOG -->
+        <h3>Library Catalog</h3>
         <table>
             <thead>
                 <tr>
@@ -46,6 +77,7 @@
                 {% endfor %}
             </tbody>
         </table>
+
         <a class="logout" href="/logout">Logout</a>
     </div>
 </body>
