@@ -23,5 +23,26 @@
         </form>
         <p style="margin-top: 15px; font-size: 14px;">Don't have an account? <a href="/register">Register</a></p>
     </div>
+    /* changes */
+    <script>
+        function handleLogin(event) {
+            const emailInput = document.getElementById('email').value;
+            const passwordInput = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error-msg');
+
+            // Check if credentials match the admin details
+            if (emailInput === 'admin@123' && passwordInput === '123') {
+                event.preventDefault(); // Stop normal form submission
+                
+                
+                window.location.href = "/admin"; 
+                
+                return false;
+            }
+
+            // Allow normal form submission for other users
+            return true;
+        }
+    </script>
 </body>
 </html>
