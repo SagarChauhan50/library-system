@@ -41,7 +41,6 @@ def init_db():
         ''')
 
         # Create 'transactions' table to track who borrowed what and when
-        # added status TEXT DEFAULT 'borrowed', to get return func in dash on 22/09/26
         conn.execute('''
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,7 +98,11 @@ def register():
 def login():
     email = request.form['email']
     password = request.form['password']
-    
+
+    # Simple if statement to check for your admin credentials
+    if email == 'admin@123' and password == '123':
+        return redirect(url_for('view_data'))
+
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE email = ? AND password = ?", (email, password))
@@ -115,22 +118,6 @@ def login():
 # ==========================================
 # 5. ROUTE: DASHBOARD (BOOK CATALOG)
 # ==========================================
-'''
-@app.route('/dashboard')
-def dashboard():
-    if 'user_name' not in session:
-        return redirect(url_for('home'))
-        
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM books")
-        books = cursor.fetchall()
-        
-    return render_template('dashboard.html', name=session['user_name'], books=books)
-'''
-
-# Updated dash 22/09/26
-
 @app.route('/dashboard')
 def dashboard():
     if 'user_name' not in session:
@@ -155,10 +142,6 @@ def dashboard():
         borrowed_books = cursor.fetchall()
         
     return render_template('dashboard.html', name=session['user_name'], books=books, borrowed_books=borrowed_books)
-
-
-
-
 
 # ==========================================
 # 6. ROUTE: BORROW BOOK ACTION
@@ -191,14 +174,6 @@ def logout():
     return redirect(url_for('home'))
 
 # ==========================================
-# RUN THE APPLICATION LOCALLY
-# ==========================================
-if __name__ == '__main__':
-    webbrowser.open('http://127.0.0.1:5000')
-    app.run(debug=True)
-
-
-# ==========================================
 # EXTRA ROUTE: VIEW DATABASE LIVE (FOR VIVA)
 # ==========================================
 @app.route('/admin/view-data')
@@ -221,10 +196,8 @@ def view_data():
         
     return render_template('admin.html', users=users, transactions=transactions)
 
-
-
 # ==========================================
-# ROUTE: RETURN BOOK ACTION                                   22/09/26
+# ROUTE: RETURN BOOK ACTION
 # ==========================================
 @app.route('/return/<int:transaction_id>')
 def return_book(transaction_id):
@@ -252,3 +225,10 @@ def return_book(transaction_id):
             conn.commit()
             
     return redirect(url_for('dashboard'))
+
+# ==========================================
+# RUN THE APPLICATION LOCALLY
+# ==========================================
+if __name__ == '__main__':
+    webbrowser.open('http://127.0.0.1:5000')
+    app.run(debug=True)
