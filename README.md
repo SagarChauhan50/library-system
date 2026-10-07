@@ -18,7 +18,7 @@ A web-based Library Management System built with **Python**, **Flask**, and **SQ
 ## 🛠️ Tech Stack
 * **Backend:** Python, Flask
 * **Database:** SQLite
-* **Frontend:** HTML5, CSS3, Jinja2 Templates
+* **Frontend:** HTML5, CSS3
 * **Deployment:** Render
 
 ---
@@ -27,7 +27,7 @@ A web-based Library Management System built with **Python**, **Flask**, and **SQ
 
 If you want to run this project locally on your machine, follow these steps:
 
-1. **Clone the repository:**
+1. Clone the repository:
    ```bash
    git clone [https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git)
    cd YOUR_REPOSITORY_NAME
