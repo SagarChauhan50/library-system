@@ -185,6 +185,14 @@ def view_data():
         cursor.execute("SELECT id, name, email, role FROM users")
         users = cursor.fetchall()
         
+        # Get all books for inventory management
+        cursor.execute("SELECT id, title, author, available_copies FROM books")
+        books = cursor.fetchall()
+        
+        # Get total book titles count
+        cursor.execute("SELECT COUNT(*) FROM books")
+        total_books = cursor.fetchone()[0]
+        
         # Get all borrowing transactions
         cursor.execute("""
             SELECT transactions.id, users.name, books.title, transactions.borrow_date 
@@ -194,7 +202,34 @@ def view_data():
         """)
         transactions = cursor.fetchall()
         
-    return render_template('admin.html', users=users, transactions=transactions)
+    return render_template('admin.html', users=users, books=books, total_books=total_books, transactions=transactions)
+
+# ==========================================
+# ROUTE: ADMIN - ADD BOOK
+# ==========================================
+@app.route('/admin/add-book', methods=['POST'])
+def add_book():
+    title = request.form['title']
+    author = request.form['author']
+    available_copies = request.form['available_copies']
+    
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("INSERT INTO books (title, author, available_copies) VALUES (?, ?, ?)", 
+                     (title, author, available_copies))
+        conn.commit()
+        
+    return redirect(url_for('view_data'))
+
+# ==========================================
+# ROUTE: ADMIN - REMOVE BOOK
+# ==========================================
+@app.route('/admin/remove-book/<int:book_id>')
+def remove_book(book_id):
+    with sqlite3.connect(DB_NAME) as conn:
+        conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
+        conn.commit()
+        
+    return redirect(url_for('view_data'))
 
 # ==========================================
 # ROUTE: RETURN BOOK ACTION
@@ -222,7 +257,7 @@ def return_book(transaction_id):
             # Increase available copies of the book by 1
             conn.execute("UPDATE books SET available_copies = available_copies + 1 WHERE id = ?", (book_id,))
             
-            conn.commit()
+            commited = conn.commit()
             
     return redirect(url_for('dashboard'))
 
