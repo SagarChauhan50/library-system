@@ -1,7 +1,9 @@
 # Import the tools we need from Flask and Python
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
 import sqlite3
+import os
 import webbrowser
+from werkzeug.utils import secure_filename
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -9,8 +11,11 @@ app = Flask(__name__)
 # A secret key is required by Flask to keep user sessions safe and encrypted
 app.secret_key = 'super_secret_key_for_library_system'
 
-# Define our database file name
+# Define our database file name and upload folder
 DB_NAME = 'library.db'
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # ==========================================
 # 1. DATABASE SETUP FUNCTION
@@ -30,13 +35,14 @@ def init_db():
             )
         ''')
         
-        # Create 'books' table to store the library inventory
+        # Create 'books' table to store the library inventory and pdf filename
         conn.execute('''
             CREATE TABLE IF NOT EXISTS books (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 author TEXT NOT NULL,
-                available_copies INTEGER NOT NULL
+                available_copies INTEGER NOT NULL,
+                pdf_filename TEXT
             )
         ''')
 
@@ -57,12 +63,12 @@ def init_db():
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM books")
         if cursor.fetchone()[0] == 0:
-            conn.execute("INSERT INTO books (title, author, available_copies) VALUES (?, ?, ?)", 
-                         ("Python Programming for Beginners", "John Smith", 5))
-            conn.execute("INSERT INTO books (title, author, available_copies) VALUES (?, ?, ?)", 
-                         ("Data Structures Made Easy", "Jane Doe", 3))
+            conn.execute("INSERT INTO books (title, author, available_copies, pdf_filename) VALUES (?, ?, ?, ?)", 
+                         ("Python Programming for Beginners", "John Smith", 5, ""))
+            conn.execute("INSERT INTO books (title, author, available_copies, pdf_filename) VALUES (?, ?, ?, ?)", 
+                         ("Data Structures Made Easy", "Jane Doe", 3, ""))
 
-# Initialize the database immediately so Render/Gunicorn picks it up on startup
+# Initialize the database immediately on startup
 init_db()
 
 # ==========================================
@@ -129,7 +135,7 @@ def dashboard():
         cursor = conn.cursor()
         
         # 1. Get all books for the catalog table
-        cursor.execute("SELECT * FROM books")
+        cursor.execute("SELECT id, title, author, available_copies, pdf_filename FROM books")
         books = cursor.fetchall()
         
         # 2. Get only the books currently borrowed by this logged-in user
@@ -166,7 +172,16 @@ def borrow_book(book_id):
     return redirect(url_for('dashboard'))
 
 # ==========================================
-# 7. ROUTE: LOGOUT
+# 7. ROUTE: READ / VIEW PDF
+# ==========================================
+@app.route('/read/<filename>')
+def read_book(filename):
+    if 'user_name' not in session:
+        return redirect(url_for('home'))
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# ==========================================
+# 8. ROUTE: LOGOUT
 # ==========================================
 @app.route('/logout')
 def logout():
@@ -186,7 +201,7 @@ def view_data():
         users = cursor.fetchall()
         
         # Get all books for inventory management
-        cursor.execute("SELECT id, title, author, available_copies FROM books")
+        cursor.execute("SELECT id, title, author, available_copies, pdf_filename FROM books")
         books = cursor.fetchall()
         
         # Get total book titles count
@@ -205,7 +220,7 @@ def view_data():
     return render_template('admin.html', users=users, books=books, total_books=total_books, transactions=transactions)
 
 # ==========================================
-# ROUTE: ADMIN - ADD BOOK
+# ROUTE: ADMIN - ADD BOOK WITH PDF
 # ==========================================
 @app.route('/admin/add-book', methods=['POST'])
 def add_book():
@@ -213,9 +228,17 @@ def add_book():
     author = request.form['author']
     available_copies = request.form['available_copies']
     
+    pdf_filename = ""
+    if 'pdf_file' in request.files:
+        file = request.files['pdf_file']
+        if file.filename != '':
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            pdf_filename = filename
+
     with sqlite3.connect(DB_NAME) as conn:
-        conn.execute("INSERT INTO books (title, author, available_copies) VALUES (?, ?, ?)", 
-                     (title, author, available_copies))
+        conn.execute("INSERT INTO books (title, author, available_copies, pdf_filename) VALUES (?, ?, ?, ?)", 
+                     (title, author, available_copies, pdf_filename))
         conn.commit()
         
     return redirect(url_for('view_data'))
@@ -226,6 +249,17 @@ def add_book():
 @app.route('/admin/remove-book/<int:book_id>')
 def remove_book(book_id):
     with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT pdf_filename FROM books WHERE id = ?", (book_id,))
+        book = cursor.fetchone()
+        
+        # Optionally remove the physical file if it exists
+        if book and book[0]:
+            try:
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], book[0]))
+            except OSError:
+                pass
+
         conn.execute("DELETE FROM books WHERE id = ?", (book_id,))
         conn.commit()
         
@@ -244,20 +278,14 @@ def return_book(transaction_id):
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         
-        # Check if the transaction belongs to this user and is active
         cursor.execute("SELECT book_id FROM transactions WHERE id = ? AND user_id = ? AND status = 'borrowed'", (transaction_id, user_id))
         transaction = cursor.fetchone()
         
         if transaction:
             book_id = transaction[0]
-            
-            # Mark transaction as returned
             conn.execute("UPDATE transactions SET status = 'returned' WHERE id = ?", (transaction_id,))
-            
-            # Increase available copies of the book by 1
             conn.execute("UPDATE books SET available_copies = available_copies + 1 WHERE id = ?", (book_id,))
-            
-            commited = conn.commit()
+            conn.commit()
             
     return redirect(url_for('dashboard'))
 
